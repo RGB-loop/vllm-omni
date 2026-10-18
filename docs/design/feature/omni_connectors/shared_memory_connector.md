@@ -105,8 +105,14 @@ This metadata is passed over the control plane and allows the downstream stage t
 To avoid races between the producer and consumer, the connector uses a lock file per request:
 
 ```text
-/dev/shm/shm_{put_key}_lockfile.lock
+/dev/shm/shm_{segment_name}_lockfile.lock
 ```
+
+`segment_name` is `put_key` when the key only uses `[A-Za-z0-9_.-]` and the
+lock file name fits the 255-byte file-name limit. Keys embed request ids, which
+clients can choose, so any other key is mapped to `omni_shm_key_{sha256(key)}`.
+The segment and its lock file both use this name; `_pending_keys`, `cleanup()`
+and `cleanup_prefix()` keep using the original key.
 
 Locking is done with `fcntl.flock`:
 
@@ -151,7 +157,7 @@ This is the path used by the current stage-to-stage connector flow.
 
 The connector also keeps a compatibility path for callers that only know the key:
 
-1. Attempt to open the shared-memory segment by name via `SharedMemory(name=get_key)`.
+1. Attempt to open the shared-memory segment by the segment name derived from `get_key` (see 4.3).
 2. If the segment exists and has non-zero size, acquire the exclusive lock and read the bytes.
 3. Deserialize the bytes and return the object.
 
