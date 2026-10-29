@@ -254,7 +254,9 @@ class SharedMemoryConnector(OmniConnectorBase):
 
         except Exception as e:
             # Reuse the name from the try block: recomputing it here could raise again.
-            logger.error("SharedMemoryConnector put failed for req %s (segment %s): %s", put_key, name, e)
+            # It is still None if the failure happened before the name was derived.
+            segment = name if name is not None else "<not computed>"
+            logger.error("SharedMemoryConnector put failed for req %s (segment %s): %s", put_key, segment, e)
             return False, 0, None
 
     def _get_data_with_lock(self, lock_file: str, shm_handle: dict[str, Any]) -> tuple[Any, int] | None:

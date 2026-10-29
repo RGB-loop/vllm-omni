@@ -323,10 +323,14 @@ def test_put_returns_failure_when_segment_name_raises(connector, monkeypatch):
     def fail_segment_name(_key):
         raise UnicodeEncodeError("utf-8", "x", 0, 1, "bad key")
 
+    errors = []
     monkeypatch.setattr(module, "_segment_name", fail_segment_name)
+    monkeypatch.setattr(module.logger, "error", lambda *args, **kwargs: errors.append(args))
     key = f"bad_name_{uuid.uuid4().hex}"
     assert connector.put("0", "1", key, "payload") == (False, 0, None)
     assert key not in connector._pending_keys
+    assert len(errors) == 1
+    assert errors[0][2] == "<not computed>"
 
 
 @pytest.mark.parametrize("suffix", ["_1_2", "_1", "_0", "_suffix"])
