@@ -23,7 +23,9 @@ logger = get_connector_logger(__name__)
 
 
 _SAFE_SEGMENT_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
-# "/dev/shm/shm_{name}_lockfile.lock" must fit in NAME_MAX (255).
+# "/dev/shm/shm_{name}_lockfile.lock" must fit in NAME_MAX (255). The limit is
+# in bytes; comparing it with len(key) is valid only because every character in
+# _SAFE_SEGMENT_CHARS is ASCII (one byte each).
 _MAX_SEGMENT_NAME = 255 - len("shm__lockfile.lock")
 _HASHED_SEGMENT_PREFIX = "omni_shm_key_"
 
@@ -251,6 +253,7 @@ class SharedMemoryConnector(OmniConnectorBase):
 
         except Exception as e:
             logger.error(f"SharedMemoryConnector put failed for req {put_key}: {e}")
+            logger.debug("put failed: key %s maps to SHM segment %s", put_key, _segment_name(put_key))
             return False, 0, None
 
     def _get_data_with_lock(self, lock_file: str, shm_handle: dict[str, Any]) -> tuple[Any, int] | None:
@@ -328,12 +331,12 @@ class SharedMemoryConnector(OmniConnectorBase):
                 seg = shm_pkg.SharedMemory(name=name)
                 seg.close()
                 seg.unlink()
-                logger.debug("cleanup: unlinked unconsumed SHM segment %s", key)
+                logger.debug("cleanup: unlinked unconsumed SHM segment %s (key %s)", name, key)
                 unlinked = True
             except FileNotFoundError:
                 pass
             except Exception as e:
-                logger.debug("cleanup: failed to unlink SHM segment %s: %s", key, e)
+                logger.debug("cleanup: failed to unlink SHM segment %s (key %s): %s", name, key, e)
             lock_file = _lock_path(name)
             if os.path.exists(lock_file):
                 try:

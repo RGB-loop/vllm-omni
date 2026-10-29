@@ -108,9 +108,11 @@ To avoid races between the producer and consumer, the connector uses a lock file
 /dev/shm/shm_{segment_name}_lockfile.lock
 ```
 
-`segment_name` is `put_key` when the key only uses `[A-Za-z0-9_.-]` and the
-lock file name fits the 255-byte file-name limit. Keys embed request ids, which
-clients can choose, so any other key is mapped to `omni_shm_key_{sha256(key)}`.
+`segment_name` is `put_key` when the key only uses `[A-Za-z0-9_.-]`, does not
+start with `.` or `omni_shm_key_`, and the lock file name fits the 255-byte
+file-name limit. Keys embed request ids, which clients can choose, so any other
+key is mapped to `omni_shm_key_{sha256(key)}`. Hashing keys that start with
+`omni_shm_key_` keeps a plain key from aliasing a hashed name.
 The segment and its lock file both use this name; `_pending_keys`, `cleanup()`
 and `cleanup_prefix()` keep using the original key.
 
