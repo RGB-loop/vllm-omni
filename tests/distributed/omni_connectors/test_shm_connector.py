@@ -317,6 +317,18 @@ def test_consumed_bad_payload_removes_lock_file(connector, monkeypatch):
     assert key not in connector._pending_keys
 
 
+def test_put_returns_failure_when_segment_name_raises(connector, monkeypatch):
+    from vllm_omni.distributed.omni_connectors.connectors import shm_connector as module
+
+    def fail_segment_name(_key):
+        raise UnicodeEncodeError("utf-8", "x", 0, 1, "bad key")
+
+    monkeypatch.setattr(module, "_segment_name", fail_segment_name)
+    key = f"bad_name_{uuid.uuid4().hex}"
+    assert connector.put("0", "1", key, "payload") == (False, 0, None)
+    assert key not in connector._pending_keys
+
+
 @pytest.mark.parametrize("suffix", ["_1_2", "_1", "_0", "_suffix"])
 def test_cleanup_prefix_only_matches_own_chunk_keys(connector, suffix):
     request_id = f"prefix_{uuid.uuid4().hex}"

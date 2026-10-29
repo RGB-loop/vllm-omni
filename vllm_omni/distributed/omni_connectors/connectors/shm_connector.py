@@ -227,6 +227,7 @@ class SharedMemoryConnector(OmniConnectorBase):
         put_key: str,
         data: Any,
     ) -> tuple[bool, int, dict[str, Any] | None]:
+        name = None
         try:
             # Keep per-send housekeeping small when unread chunks accumulate.
             # Explicit sweeps retain a larger budget to drain stale records.
@@ -252,8 +253,8 @@ class SharedMemoryConnector(OmniConnectorBase):
             return True, size, metadata
 
         except Exception as e:
-            logger.error(f"SharedMemoryConnector put failed for req {put_key}: {e}")
-            logger.debug("put failed: key %s maps to SHM segment %s", put_key, _segment_name(put_key))
+            # Reuse the name from the try block: recomputing it here could raise again.
+            logger.error("SharedMemoryConnector put failed for req %s (segment %s): %s", put_key, name, e)
             return False, 0, None
 
     def _get_data_with_lock(self, lock_file: str, shm_handle: dict[str, Any]) -> tuple[Any, int] | None:
